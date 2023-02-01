@@ -1,4 +1,9 @@
 """ migrator.py file to handle the main execution and migration of CSV to Asana goals."""
+#pylint: disable=wrong-import-position
+import sys
+sys.path.append('.')
+sys.path.append('./utils')
+#pylint: enable=wrong-import-position
 import os
 import argparse
 import pandas as pd
@@ -68,12 +73,11 @@ def main(skip_processed=True):
     log_info(f'skip_processed flag set to: {skip_processed}')
     if skip_processed:
         log_info(
-            'Scripts will ignore previously processed goals. \
-             See goals_processed.csv for more information.'
+            'Ignoring previously processed goals. See goals_processed.csv for more information.'
         )
     else:
         log_info(
-            'Scripts are set to process all goals and ingore previously procssed goals.'
+            'Processing all goals and ingore previously procssed goals.'
         )
 
     # Import and read the goals data CSV

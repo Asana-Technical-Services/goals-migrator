@@ -43,16 +43,15 @@ class Goal():
         """
         data = {}
         goal_mappings = mappings.GOAL_MAPPINGS
-        for key in goal_mappings.items():
+        for key, value in goal_mappings.items():
             # Special handling: If this is an array of columns to capture
-            mappings_value = goal_mappings[key]
-            if 'Array::' in mappings_value:
+            if 'Array::' in value:
                 capture_string = parsers.regex_parse(
-                    mappings_value, 'Array::(.*)')
+                    value, 'Array::(.*)')
                 data[key] = list(df_row.values[list(df_row.index).index(
                     capture_string):][::-1])  # reverse to sort
             else:
-                data[key] = df_row[mappings_value]
+                data[key] = df_row[value]
         return data
 
     def create_or_update_goal(self):
