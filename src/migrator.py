@@ -2,6 +2,9 @@
 # pylint: disable=wrong-import-position
 import os
 import sys
+sys.path.append('.')
+sys.path.append('./utils')
+# pylint: enable=wrong-import-position
 import argparse
 import numpy as np
 import pandas as pd
@@ -9,9 +12,6 @@ import parsers
 import mappings
 from goal import Goal
 from logger import log_info
-sys.path.append('.')
-sys.path.append('./utils')
-# pylint: enable=wrong-import-position
 
 
 processed_goals = {}
