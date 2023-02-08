@@ -13,6 +13,51 @@ SUPER_ADMIN_GID = os.getenv('SUPER_ADMIN_GID')
 ASANA_BASE_URL = asana_client.DEFAULT_OPTIONS['base_url']
 WORKSPACE_USERS = get_all_users()
 
+
+def get_all_time_periods(start_on='', end_on=''):
+    """Gets all time periods existing in the workspace
+    API Reference: https://developers.asana.com/reference/gettimeperiods
+    """
+    params = {'workspace': WORKSPACE_GID}
+    if start_on:
+        params['start_on'] = start_on
+    if end_on:
+        params['end_on'] = end_on
+    offset = None
+    while True:
+        result = asana_client.time_periods.get_time_periods(
+            params, offset=offset, iterator_type=None, opt_pretty=True)
+        if 'next_page' in result:
+            offset = result['next_page']['offset']
+        else:
+            break
+    return result
+
+
+def get_all_goals():
+    """Gets all the goals existing in the workspace
+    API Reference: https://developers.asana.com/reference/getgoals
+    """
+    offset = None
+    params = {
+        'workspace': WORKSPACE_GID,
+        'opt_fields': 'notes'
+    }
+    while True:
+        result = asana_client.goals.get_goals(
+            params, offset=offset, iterator_type=None, opt_pretty=True)
+        if 'next_page' in result:
+            offset = result['next_page']['offset']
+        else:
+            break
+    return result
+
+
+# Store the relevant workspace data once to not make multiple API calls
+TIME_PERIODS = get_all_time_periods()
+workspace_goals = get_all_goals()
+
+
 if not WORKSPACE_GID:
     MSG = '''
     Missing WORKSPACE_GID. Please add the GID for the workspace to the environment variables.
@@ -29,12 +74,14 @@ if not SUPER_ADMIN_GID:
     log_error(MSG)
     raise ValueError(MSG)
 
+
 class Goal():
     """Goal class to process CSV data into Asana goal data for API requests."""
 
     def __init__(self, df_row) -> None:
         self.df_row = df_row
         self.data = self.map_data(df_row)
+        self.params = self.get_goal_params()
         self.gid = None
 
     def map_data(self, df_row):
@@ -64,6 +111,10 @@ class Goal():
         created_goal_gid = None
         if not goal['exists']:
             created_goal_gid = self.create_goal()
+            workspace_goals.append({
+                "gid": created_goal_gid,
+                "notes": self.params['notes'],
+            })
         else:
             created_goal_gid = self.update_goal(goal['gid'])
         self.gid = created_goal_gid
@@ -94,14 +145,9 @@ class Goal():
         any reference ID previously published in the goal's description"""
         does_exist = False
         goal_gid = None
-        params = {
-            'workspace': WORKSPACE_GID,
-            'opt_fields': 'notes'
-        }
-        result = asana_client.goals.get_goals(params, opt_pretty=True)
         # Loop through all goal data and check against
         # the id in the goal description (notes)
-        for item in result:
+        for item in workspace_goals:
             goal_reference_id = self.get_reference_id(item['notes'])
             if self.data['id'] == goal_reference_id:
                 does_exist = True
@@ -114,8 +160,7 @@ class Goal():
         Uses the mapped data in self.data to publish data into the Asana goal.
         API Reference: https://developers.asana.com/reference/creategoal
         """
-        params = self.get_goal_params()
-        result = asana_client.goals.create_goal(params, opt_pretty=True)
+        result = asana_client.goals.create_goal(self.params, opt_pretty=True)
         log_info(f'Received create goal result as: {result}')
         # Create and fill in the historical status updates
         if result:
@@ -127,9 +172,9 @@ class Goal():
         Uses the mapped data in self.data to publish data into the Asana goal.
         API Reference: https://developers.asana.com/reference/updategoal
         """
-        params = self.get_goal_params(True)
+        self.params = self.get_goal_params(True)
         result = asana_client.goals.update_goal(
-            goal_gid, params, opt_pretty=True)
+            goal_gid, self.params, opt_pretty=True)
         log_info(f'Received update goal result as: {result}')
         return result['gid'] if result else None
 
@@ -209,7 +254,11 @@ class Goal():
         # First attempt to get the time period based off the start and end dates
         start_date = self.data['start_on']
         end_date = self.data['due_on']
-        time_period = next((period for period in self.get_time_periods()
+        # Necessary because it gets used as a generator object
+        time_periods_initial = TIME_PERIODS
+        # Necessary because it gets used as a generator object
+        time_periods_retry = TIME_PERIODS
+        time_period = next((period for period in time_periods_initial
                             if period['start_on'] == start_date
                             and period['end_on'] == end_date), None)
 
@@ -228,22 +277,10 @@ class Goal():
                 display_value = f'FY{year_text[-2:]}'
             elif quarter_text and year_text:
                 display_value = f'{quarter_text} FY{year_text[-2:]}'
-            time_period = next((item for item in self.get_time_periods(
-            ) if item['display_name'] == display_value), None)
-        return time_period['gid'] if time_period else None
 
-    def get_time_periods(self, start_on='', end_on=''):
-        """Gets all time periods existing in the workspace
-        API Reference: https://developers.asana.com/reference/gettimeperiods
-        """
-        params = {'workspace': WORKSPACE_GID}
-        if start_on:
-            params['start_on'] = start_on
-        if end_on:
-            params['end_on'] = end_on
-        result = asana_client.time_periods.get_time_periods(
-            params, opt_pretty=True)
-        return result
+            time_period = next((item for item in time_periods_retry
+                                if item['display_name'] == display_value), None)
+        return time_period['gid'] if time_period else None
 
     def create_historical_status_updates(self, goal_gid):
         """Creates all the Asana status update objects on the goal (sorted by timestamp)
@@ -251,7 +288,7 @@ class Goal():
         """
         status_updates = self.data['status_updates']
         for item in status_updates:
-            if item is not None:  # TODO: Handle this better and check input dataframe data
+            if item is not None:
                 self.create_historical_status_update(goal_gid, item)
 
         # If the historical status updates were empty, check for an existing last checkin
@@ -344,6 +381,7 @@ class Goal():
     def find_mapped_owner_gid(self, owner):
         """Searches for and return the goal owner's GID based on first and last name,
         the email, and the member mappings in the members.csv"""
+        # TODO: Implement performance improvement of pre-mapping these during initial script run
         # First check if the owner is in the user mappings
         valid_email = next(
             (email for email, name in MEMBERS_MAPPINGS.items() if owner == name), None)

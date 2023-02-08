@@ -1,17 +1,20 @@
 """ migrator.py file to handle the main execution and migration of CSV to Asana goals."""
-#pylint: disable=wrong-import-position
-import sys
-sys.path.append('.')
-sys.path.append('./utils')
-#pylint: enable=wrong-import-position
+# pylint: disable=wrong-import-position
 import os
+import sys
 import argparse
-import pandas as pd
 import numpy as np
+import pandas as pd
 import parsers
 import mappings
-from logger import log_info
 from goal import Goal
+from logger import log_info
+sys.path.append('.')
+sys.path.append('./utils')
+# pylint: enable=wrong-import-position
+
+
+processed_goals = {}
 
 
 def get_goal_row_from_id(goals_df, goal_id):
@@ -32,7 +35,14 @@ def link_aligned_goals(goals_df, child_goal):
     # If this goal is aligned to another, create/update and link it
     if not aligned_goal_data_row.empty:
         aligned_goal = Goal(aligned_goal_data_row)
-        aligned_goal.create_or_update_goal()
+        already_processed = aligned_goal.data['id'] in processed_goals
+        # Skip creating/updating the aligned goal since we've already created it
+        if already_processed:
+            # Get and set the gid to be used in link child goals below
+            aligned_goal.gid = processed_goals[aligned_goal.data['id']]
+        else:
+            aligned_goal.create_or_update_goal()
+            processed_goals[aligned_goal.data['id']] = aligned_goal.gid
         aligned_goal.link_child_goal(child_goal, goal_has_parent)
 
 
@@ -108,6 +118,7 @@ def main(skip_processed=True):
         log_info(f'Processing goal index: {index}')
         goal = Goal(row)
         goal.create_or_update_goal()
+        processed_goals[goal.data['id']] = goal.gid
         link_aligned_goals(goals_df, goal)
 
         # Write the processed goal data to the ouput CSV

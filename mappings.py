@@ -21,10 +21,6 @@ GOAL_MAPPINGS = {
   'target_number_value': 'Target',
 }
 
-TEAM_MAPPINGS = {
-
-}
-
 # Required to handle blank column names that hold additional check-in notes in rows
 # that expand based on the max number of entries/columns for checkin data
 CSV_COLUMN_NAMES = [
