@@ -30,14 +30,16 @@ def get_all_users():
         'opt_fields': 'gid,email,name',
         'workspace': WORKSPACE_GID,
     }
+    data = []
     while True:
         result = asana_client.users.get_users(
-            params, offset=offset, iterator_type=None, opt_pretty=True)
-        if 'next_page' in result:
+            params, offset=offset, full_payload=True, limit=100, iterator_type=None, opt_pretty=True)
+        data += result['data']
+        if 'next_page' in result and result['next_page'] is not None:
             offset = result['next_page']['offset']
         else:
             break
-    return result
+    return data
 
 
 # Constant variables to export and use throughout

@@ -18,20 +18,22 @@ def get_all_time_periods(start_on='', end_on=''):
     """Gets all time periods existing in the workspace
     API Reference: https://developers.asana.com/reference/gettimeperiods
     """
+    offset = None
     params = {'workspace': WORKSPACE_GID}
     if start_on:
         params['start_on'] = start_on
     if end_on:
         params['end_on'] = end_on
-    offset = None
+    data = []
     while True:
         result = asana_client.time_periods.get_time_periods(
-            params, offset=offset, iterator_type=None, opt_pretty=True)
-        if 'next_page' in result:
+            params, offset=offset, full_payload=True, limit=100, iterator_type=None, opt_pretty=True)
+        data += result['data']
+        if 'next_page' in result and result['next_page'] is not None:
             offset = result['next_page']['offset']
         else:
             break
-    return result
+    return data
 
 
 def get_all_goals():
@@ -43,14 +45,16 @@ def get_all_goals():
         'workspace': WORKSPACE_GID,
         'opt_fields': 'notes'
     }
+    data = []
     while True:
         result = asana_client.goals.get_goals(
-            params, offset=offset, iterator_type=None, opt_pretty=True)
-        if 'next_page' in result:
+            params, offset=offset, full_payload=True, limit=100, iterator_type=None, opt_pretty=True)
+        data += result['data']
+        if 'next_page' in result and result['next_page'] is not None:
             offset = result['next_page']['offset']
         else:
             break
-    return result
+    return data
 
 
 # Store the relevant workspace data once to not make multiple API calls
