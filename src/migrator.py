@@ -95,7 +95,6 @@ def main(skip_processed=True):
     # additional check-in notes in rows
     column_names = mappings.CSV_COLUMN_NAMES
 
-    # goals_df = pd.read_csv('./discord-all-goals.csv', names=column_names)
     goals_df = pd.read_csv('./goals.csv',  names=column_names)
     goals_df = preprocess_df(goals_df)
     log_info(f'Imported <{len(goals_df)}> goals.')
