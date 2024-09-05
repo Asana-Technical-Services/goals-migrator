@@ -1,0 +1,4 @@
+asana
+pandas
+numpy
+requests
