@@ -1,5 +1,5 @@
 # goals-migrator
-Goals migration scripts for migrating Ally.io OKR goals data from a CSV into an Asana workspace (domain).
+Goals migration scripts for migrating Ally.io OKR goals data from a CSV into an Asana workspace (domain). You can also use this script for other goals from other systems, if formatted as a CSV matching the one provided as an example in goals.csv
 
 ## Overview
 The script is designed to migrate goals from a CSV file and load them into the Asana Goals API. It reads goal mappings, handles CSV column names, and performs API operations to create or update goals in Asana.
@@ -16,8 +16,8 @@ Required Python packages (asana, pandas, numpy)
 ## Setup
 Step 1: Clone the Repository
 ```
-git clone https://github.com/username/repository.git
-cd repository
+git clone https://github.com/Asana-Technical-Services/goals-migrator.git
+cd goals-migrator
 ```
 Step 2: Install Requirements
 pip install -r requirements.txt
